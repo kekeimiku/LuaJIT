@@ -29,6 +29,10 @@
 #include <stdio.h>
 #endif
 
+#if LJ_TARGET_OSX
+#include <sys/syslimits.h>
+#endif
+
 #if !LJ_TARGET_PSVITA
 #include <locale.h>
 #endif
@@ -81,9 +85,20 @@ LJLIB_CF(os_tmpname)
   return 0;
 #else
 #if LJ_TARGET_POSIX
+#if LJ_TARGET_OSX
+  char buf[PATH_MAX];
+#else
   char buf[15+1];
+#endif
   int fp;
+#if LJ_TARGET_OSX
+  size_t n = confstr(_CS_DARWIN_USER_TEMP_DIR, buf, sizeof(buf));
+  if (n == 0 || n + 10 > sizeof(buf))
+    lj_err_caller(L, LJ_ERR_OSUNIQF);
+  memcpy(buf + n - 1, "lua_XXXXXX", 11);  /* Path ends with '/'. */
+#else
   strcpy(buf, "/tmp/lua_XXXXXX");
+#endif
   fp = mkstemp(buf);
   if (fp != -1)
     close(fp);
